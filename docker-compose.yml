@@ -1,16 +1,6 @@
 version: '3'
 
 services:
-  nest-admin-web:
-    image: buqiyuan/vue3-antdv-admin:stable
-    container_name: nest-admin-web
-    volumes:
-      - ./deploy/web:/etc/nginx/conf.d
-    ports:
-      - '80:80'
-    restart: always
-    networks:
-      - nest_admin_net
   mysql:
     image: mysql:8.4
     container_name: nest-admin-mysql
