@@ -25,12 +25,20 @@ RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
 
 # install & build
 COPY ./ $PROJECT_DIR
-RUN chmod +x ./wait-for-it.sh \
-    && apk update && apk add bash \
-    && yarn install \
-    && yarn build \
-    # same as npm prune --production
-    && yarn install --production \
+RUN chmod +x ./wait-for-it.sh
+
+RUN apk add --no-cache bash python3 make g++ libc6-compat
+
+RUN corepack enable \
+    && corepack prepare yarn@1.22.22 --activate \
+    && yarn --version
+
+RUN yarn install --network-timeout 600000
+
+RUN yarn build
+
+# same as npm prune --production
+RUN yarn install --production --network-timeout 600000 \
     && yarn global add pm2
 
 # EXPOSE port
