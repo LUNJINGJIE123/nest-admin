@@ -10,6 +10,7 @@ import { EntityManager, In, Not, Repository } from 'typeorm';
 import { ROOT_ROLE_ID } from 'src/modules/admin/admin.constants';
 import { RedisService } from 'src/shared/services/redis.service';
 import { SYS_USER_INITPASSWORD } from 'src/common/contants/param-config.contants';
+import { PasswordService } from 'src/shared/services/password.service';
 import { SysParamConfigService } from '../param-config/param-config.service';
 import { AccountInfo, PageSearchUserInfo } from './user.class';
 import {
@@ -33,6 +34,7 @@ export class SysUserService {
     @InjectEntityManager() private entityManager: EntityManager,
     @Inject(ROOT_ROLE_ID) private rootRoleId: number,
     private util: UtilService,
+    private passwordService: PasswordService,
   ) {}
 
   /**
@@ -82,12 +84,19 @@ export class SysUserService {
     if (isEmpty(user)) {
       throw new ApiException(10017);
     }
-    const comparePassword = this.util.md5(`${dto.originPassword}${user.psalt}`);
+    const passwordResult = await this.passwordService.verify(
+      user.password,
+      dto.originPassword,
+      user.psalt,
+    );
     // 原密码不一致，不允许更改
-    if (user.password !== comparePassword) {
+    if (!passwordResult.valid) {
       throw new ApiException(10011);
     }
-    const password = this.util.md5(`${dto.newPassword}${user.psalt}`);
+    const password = await this.passwordService.hash(
+      dto.newPassword,
+      user.psalt,
+    );
     await this.userRepository.update({ id: uid }, { password });
     await this.upgradePasswordV(user.id);
   }
@@ -100,7 +109,7 @@ export class SysUserService {
     if (isEmpty(user)) {
       throw new ApiException(10017);
     }
-    const newPassword = this.util.md5(`${password}${user.psalt}`);
+    const newPassword = await this.passwordService.hash(password, user.psalt);
     await this.userRepository.update({ id: uid }, { password: newPassword });
     await this.upgradePasswordV(user.id);
   }
@@ -126,7 +135,10 @@ export class SysUserService {
         SYS_USER_INITPASSWORD,
       );
 
-      const password = this.util.md5(`${initPassword ?? '123456'}${salt}`);
+      const password = await this.passwordService.hash(
+        initPassword ?? '123456',
+        salt,
+      );
       const u = manager.create(SysUser, {
         departmentId: param.departmentId,
         username: param.username,
@@ -321,6 +333,10 @@ export class SysUserService {
     await this.redisService.getRedis().del(`admin:passwordVersion:${uid}`);
     await this.redisService.getRedis().del(`admin:token:${uid}`);
     await this.redisService.getRedis().del(`admin:perms:${uid}`);
+  }
+
+  async updatePasswordHash(uid: number, password: string): Promise<void> {
+    await this.userRepository.update({ id: uid }, { password });
   }
 
   /**

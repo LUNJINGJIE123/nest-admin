@@ -5,6 +5,7 @@ import * as svgCaptcha from 'svg-captcha';
 import { UtilService } from 'src/shared/services/util.service';
 import { ApiException } from 'src/common/exceptions/api.exception';
 import { RedisService } from 'src/shared/services/redis.service';
+import { PasswordService } from 'src/shared/services/password.service';
 import { SysLogService } from '../system/log/log.service';
 import { SysUserService } from '../system/user/user.service';
 import { SysMenuService } from '../system/menu/menu.service';
@@ -19,6 +20,7 @@ export class LoginService {
     private userService: SysUserService,
     private logService: SysLogService,
     private util: UtilService,
+    private passwordService: PasswordService,
     private jwtService: JwtService,
   ) {}
 
@@ -77,9 +79,19 @@ export class LoginService {
     if (isEmpty(user)) {
       throw new ApiException(10003);
     }
-    const comparePassword = this.util.md5(`${password}${user.psalt}`);
-    if (user.password !== comparePassword) {
+    const passwordResult = await this.passwordService.verify(
+      user.password,
+      password,
+      user.psalt,
+    );
+    if (!passwordResult.valid) {
       throw new ApiException(10003);
+    }
+    if (passwordResult.needsRehash) {
+      await this.userService.updatePasswordHash(
+        user.id,
+        await this.passwordService.hash(password, user.psalt),
+      );
     }
     const perms = await this.menuService.getPerms(user.id);
     // TODO 系统管理员开放多点登录

@@ -1,14 +1,16 @@
 import { HttpModule } from '@nestjs/axios';
-import { Global, CacheModule, Module } from '@nestjs/common';
+import { CacheModule } from '@nestjs/cache-manager';
+import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { RedisModule } from './redis/redis.module';
+import { PasswordService } from './services/password.service';
 import { RedisService } from './services/redis.service';
 import { UtilService } from './services/util.service';
 import { ConfigurationKeyPaths } from '@/config/configuration';
 
 // common provider list
-const providers = [UtilService, RedisService];
+const providers = [UtilService, RedisService, PasswordService];
 
 /**
  * 全局共享模块

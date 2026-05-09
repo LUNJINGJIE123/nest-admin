@@ -16,6 +16,13 @@ const parseZone = (zone: string) => {
   }
 };
 
+const parseBoolean = (value: string | undefined, fallback: boolean) => {
+  if (value === undefined) {
+    return fallback;
+  }
+  return value === 'true';
+};
+
 export const getConfiguration = () =>
   ({
     rootRoleId: parseInt(process.env.ROOT_ROLE_ID || '1'),
@@ -50,7 +57,10 @@ export const getConfiguration = () =>
       migrations: ['dist/src/migrations/**/*.js'],
       autoLoadEntities: true,
       /** https://typeorm.io/migrations */
-      synchronize: true,
+      synchronize: parseBoolean(
+        process.env.TYPEORM_SYNCHRONIZE,
+        process.env.NODE_ENV !== 'production',
+      ),
       logging: ['error'],
       timezone: '+08:00', // 东八区
       cli: {
